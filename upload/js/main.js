@@ -18,7 +18,7 @@ $(function () {
     $('#fileupload').fileupload({
         // Uncomment the following to send cross-domain cookies:
         //xhrFields: {withCredentials: true},
-        url: 'http://jquery-file-upload.appspot.com/'
+        url: 'http://demo.vir888.tk/upload'
     });
 
     // Enable iframe cross-domain access via redirect option:
