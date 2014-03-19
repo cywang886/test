@@ -1,0 +1,349 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>圖檔上傳</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <link href="https://s3.amazonaws.com/hayageek/libs/jquery/bootstrap.min.css" rel="stylesheet">
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  </head>
+
+  <body>
+
+ <!-- Navbar
+    ================================================== -->
+ <div class="navbar navbar-fixed-top">
+   <div class="navbar-inner">
+     <div class="container">
+       <a rel="tooltip" title="圖檔上傳" class="brand" href="#">圖檔上傳</a>
+       <div class="nav-collapse collapse" id="main-menu">
+        <ul class="nav pull-right" id="main-menu-right" ></ul>
+       </div>
+     </div>
+   </div>
+ </div>
+ 
+  <div class="container">
+
+
+<!-- Masthead
+================================================== -->
+<br/><br/>
+
+<section id="typography">
+ 
+<div id="row">
+
+
+<style>
+#dragandrophandler
+{
+border: 2px dashed #92AAB0;
+width: 650px;
+height: 100px;
+color: #92AAB0;
+text-align: center;
+vertical-align: middle;
+padding: 10px 0px 10px 10px;
+font-size:200%;
+display: table-cell;
+}
+.progressBar {
+	width: 200px;
+	height: 22px;
+	border: 1px solid #ddd;
+	border-radius: 5px;	
+	overflow: hidden;
+	display:inline-block;
+	margin:0px 10px 5px 5px;
+	vertical-align:top;
+}
+
+.progressBar div {
+	height: 100%;
+	color: #fff;
+	text-align: right;
+	line-height: 22px; /* same as #progressBar height if we want text middle aligned */
+	width: 0;
+	background-color: #0ba1b5; border-radius: 3px; 
+}
+.statusbar
+{
+	border-top:1px solid #A9CCD1;
+	min-height:25px;
+	width:700px;
+	padding:10px 10px 0px 10px;
+	vertical-align:top;
+}
+.statusbar:nth-child(odd){
+    background:#EBEFF0;
+}
+.filename
+{
+display:inline-block;
+vertical-align:top;
+width:250px;
+}
+.filesize
+{
+display:inline-block;
+vertical-align:top;
+color:#30693D;
+width:100px;
+margin-left:10px;
+margin-right:5px;
+}
+.abort{
+	background-color:#A8352F;
+	-moz-border-radius:4px;
+	-webkit-border-radius:4px;
+	border-radius:4px;display:inline-block;
+	color:#fff;
+	font-family:arial;font-size:13px;font-weight:normal;
+	padding:4px 15px;
+	cursor:pointer;
+	vertical-align:top
+	}
+</style>
+
+
+<div class="row">
+<div class="well">
+<div id="dragandrophandler">圖檔拖曳到此即可上傳
+<button id='uploadfile' type="button">按我上傳</button>
+<input type="file" id="uploadfile2" name="uploadfile2" style="visibility:hidden" width="0" height="0"/>
+</div>
+
+<br><br>
+<div id="status1"></div>
+
+</div>
+
+</div>
+
+ 
+
+</section>
+<script>
+$('#uploadfile2').change(function( e ){
+  var obj = $("#dragandrophandler");
+  //console.log(this.files);
+  handleFileUpload( this.files , obj );
+});
+$('#uploadfile').click(function(){
+	$('#uploadfile2').trigger('click');
+});
+
+$(function(){
+    FileHandler = {
+        UpdatePreview: function(obj , id ){
+          // if IE < 10 doesn't support FileReader
+          if(!window.FileReader){
+             // don't know how to proceed to assign src to image tag
+          } else {
+             var reader = new FileReader();
+             var target = null;
+
+             whenReady = function( width , height ){
+                $("#"+id).css("width", "80" );
+                $("#"+id).css("height", "80" );
+             }
+             reader.onload = function(e) {
+                target =  e.target || e.srcElement;
+                $("#"+id).prop("src", target.result);
+                $("#"+id).css("visibility", "");
+                
+                var image = new Image();
+                image.onload = function(e) {
+                    var width = this.width;
+                    var height = this.height;
+                    if (whenReady) whenReady(width, height);
+                };
+                image.src = e.target.result; 
+             };
+              reader.readAsDataURL(obj);
+          }
+        }
+    };
+});
+
+function sendFileToServer(formData,status,id)
+{
+	var uploadURL ="http://demo.vir888.tk/upload"; //Upload URL
+	var extraData ={}; //Extra Data.
+	var jqXHR=$.ajax({
+	        xhr: function() {
+            var xhrobj = $.ajaxSettings.xhr();
+            if (xhrobj.upload) {
+                    xhrobj.upload.addEventListener('progress', function(event) {
+                        var percent = 0;
+                        var position = event.loaded || event.position;
+                        var total = event.total;
+                        if (event.lengthComputable) {
+                            percent = Math.ceil(position / total * 100);
+                        }
+                        //Set progress
+                        status.setProgress(percent);
+                    }, false);
+                }
+            return xhrobj;
+        },
+	    url: uploadURL,
+	    type: "POST",
+		contentType:false,
+		processData: false,
+        cache: false,
+        data: formData,
+        success: function(data){
+        	status.setProgress(100);
+			var ret = JSON.parse(data);
+			ret = ret.files[0];
+			$("#"+id).attr("href", ret.url );
+			$("#"+id).attr("target", "_blank" );       	
+		}
+    });	
+
+	status.setAbort(jqXHR);
+}
+
+var rowCount=0;
+function createStatusbar(obj)
+{
+	 rowCount++;
+	 var row="odd";
+	 if(rowCount %2 ==0) row ="even";
+	 this.statusbar = $("<div class='statusbar "+row+"'></div>");
+     
+     obj.after(this.statusbar);
+    
+    this.setFileNameSize = function(name,size)
+    {
+    	var sizeStr="";
+    	var sizeKB = size/1024;
+    	if(parseInt(sizeKB) > 1024)
+    	{
+    		var sizeMB = sizeKB/1024;
+    		sizeStr = sizeMB.toFixed(2)+" MB";
+    	}
+    	else
+    	{
+    		sizeStr = sizeKB.toFixed(2)+" KB";
+    	}
+		this.filename = $("<div class='filename'></div>").appendTo(this.statusbar);		
+		var id = name.split('.');
+		id = id[0];
+		this.img = $("<div class='images'><img id='pic"+id+"' src=''></a></div>").appendTo(this.statusbar);
+		this.size = $("<div class='filesize'></div>").appendTo(this.statusbar);
+		this.progressBar = $("<div class='progressBar'><div></div></div>").appendTo(this.statusbar);
+		this.abort = $("<div class='abort'>Abort</div>").appendTo(this.statusbar);
+    	this.filename.html( "<a id='"+id+"' href='#'>"+name);
+    	this.size.html(sizeStr);
+    }
+    this.setProgress = function(progress)
+    {		
+	 	var progressBarWidth =progress*this.progressBar.width()/ 100;  
+		this.progressBar.find('div').animate({ width: progressBarWidth }, 10).html(progress + "%&nbsp;");
+		if(parseInt(progress) >= 100)
+		{
+			this.abort.hide();
+		}
+	}
+	this.setAbort = function(jqxhr)
+	{
+		var sb = this.statusbar;
+		this.abort.click(function()
+		{
+			jqxhr.abort();
+			sb.hide();
+		});
+	}
+}
+function handleFileUpload(files,obj)
+{
+   for (var i = 0; i < files.length; i++) 
+   {
+   		var fd = new FormData();
+	   	fd.append('file', files[i]);
+   	
+   		var status = new createStatusbar(obj); //Using this we can set progress.
+   		status.setFileNameSize(files[i].name,files[i].size);
+		var id = files[i].name.split('.');
+		id = id[0];
+   		sendFileToServer(fd,status,id);
+		FileHandler.UpdatePreview( files[i] ,'pic'+id);
+   
+   }
+}
+$(document).ready(function()
+{
+var obj = $("#dragandrophandler");
+obj.on('dragenter', function (e) 
+{
+	e.stopPropagation();
+	e.preventDefault();
+	$(this).css('border', '2px solid #0B85A1');
+});
+obj.on('dragover', function (e) 
+{
+	 e.stopPropagation();
+	 e.preventDefault();
+});
+obj.on('drop', function (e) 
+{
+	
+	 $(this).css('border', '2px dotted #0B85A1');
+	 e.preventDefault();
+	 //var files = e.originalEvent.dataTransfer.files;
+
+	 //We need to send dropped files to Server
+	 //handleFileUpload(files,obj);
+});
+$(document).on('dragenter', function (e) 
+{
+	e.stopPropagation();
+	e.preventDefault();
+});
+$(document).on('dragover', function (e) 
+{
+  e.stopPropagation();
+  e.preventDefault();
+  obj.css('border', '2px dotted #0B85A1');
+});
+$(document).on('drop', function (e) 
+{
+	e.stopPropagation();
+	e.preventDefault();
+		 var files = e.originalEvent.dataTransfer.files;
+
+	 //We need to send dropped files to Server
+	 handleFileUpload(files,obj);
+});
+
+});
+</script>
+
+     <!-- Footer
+      ================================================== -->
+      <hr>
+
+      <footer id="footer">
+        <p class="pull-right"><a href="#top">Back to top</a></p>
+        <div class="links">
+          <a href="#" >Blog</a>
+        </div>
+      </footer>
+
+    </div><!-- /container -->
+
+    <!-- Le javascript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+<script src="https://s3.amazonaws.com/hayageek/libs/jquery/bootstrap.min.js"></script>
+
+  </body>
+</html>
